@@ -243,7 +243,7 @@ void EXTI15_10_IRQHandler(void) {
         EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
         //stop the motor and show “EMERGENCY STOP” message on LCD
-        Motor_Stop();            // Stop the motor
+        //Motor_Stop();            // Stop the motor
         LCD_Clear();             // Optional
         LCD_SetCursor(1, 0);
         LCD_Print("Emergency Stop");

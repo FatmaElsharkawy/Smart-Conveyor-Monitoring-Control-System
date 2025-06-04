@@ -5,7 +5,7 @@
 
 // Define the EXTI registers
 ExtiType *EXTI = (ExtiType *)0x40013C00;
-SYSCFG *sys_conf = (SYSCFG *)0x40013800;
+SYSCFG_t *sys_conf = (SYSCFG_t *)0x40013800;
 
 void EXTI_Init(uint8 portName,  uint8 pinNum, uint8 triggerMode){
 

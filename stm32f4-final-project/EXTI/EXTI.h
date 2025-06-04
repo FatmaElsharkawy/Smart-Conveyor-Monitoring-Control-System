@@ -23,7 +23,7 @@ typedef struct{
     uint32 EXTICR[4];
     uint32 CMPCR;
 
-}SYSCFG;
+}SYSCFG_t;
 
 // Define the base addresses of the EXTI and SYSCFG registers
 // extern ExtiType *EXTI;
