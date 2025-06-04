@@ -3,7 +3,7 @@ set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
-set(ARM_TOOLCHAIN_DIR "D:/College/Year Three/Second Term/Embedded/Practical/arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi/bin")
+set(ARM_TOOLCHAIN_DIR "D:\\SBME 2026\\(3rd year 2nd term) Sixth Term\\Embedded systems\\arm-gnu-toolchain\\bin")
 
 if(MINGW OR CYGWIN OR WIN32)
     set(Extension .exe)
