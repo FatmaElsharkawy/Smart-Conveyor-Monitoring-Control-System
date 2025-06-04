@@ -48,6 +48,7 @@ uint16_t ADC_Filter(uint16_t new_value);
 void PWM_SetDutyCycle(uint8_t duty_percent);
 void LCD_DisplayMotorSpeed(uint8_t speed_percent);
 void Delay_ms(uint32_t ms);
+void Motor_Stop(void);
 
 // Main function
 int main(void) {
@@ -196,6 +197,10 @@ void PWM_SetDutyCycle(uint8_t duty_percent)
     TIM2->CCR3 = (PWM_PERIOD * duty_percent) / 100;
 }
 
+void Motor_Stop(void) {
+    PWM_SetDutyCycle(0); // 0% duty = no power to motor
+}
+
 void LCD_DisplayMotorSpeed(uint8_t speed_percent)
 {
     LCD_SetCursor(1, 6);
@@ -250,7 +255,7 @@ void EXTI15_10_IRQHandler(void) {
         EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
         //stop the motor and show “EMERGENCY STOP” message on LCD
-        //Motor_Stop();            // Stop the motor
+        Motor_Stop();            // Stop the motor
         LCD_Clear();             // Optional
         LCD_SetCursor(1, 0);
         LCD_Print("Emergency Stop");
