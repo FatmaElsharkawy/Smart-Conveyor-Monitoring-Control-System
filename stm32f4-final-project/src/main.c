@@ -2,6 +2,8 @@
 #include "LCD.h"
 #include "Gpio.h"
 #include <stdint.h>
+#include "Rcc.h"
+#include "EXTI.h"
 
 // Aliases for clarity
 #ifndef uint32
@@ -25,6 +27,14 @@ uint32_t fallingEdgeCount = 0;
 #define ADC_MAX_VALUE     4095
 #define FILTER_ALPHA      8
 #define PWM_PERIOD        999
+
+typedef struct {
+    uint32 NVIC_ISER[8]; //Enable
+    uint32 NVIC_ICER[8];  //Disable 
+}NVICType;
+
+#define NVIC        ((NVICType*) 0xE000E100)
+#define Emergency_Button              12
 
 // Function prototypes
 void SystemClock_Config(void);
@@ -53,6 +63,11 @@ int main(void)
     LCD_Print("Speed:     Cnt:");
 
     adc_filtered = ADC_Read();
+
+    EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
+    EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
+    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
+
 
     while (1)
     {
@@ -113,6 +128,10 @@ int main(void)
 
 void GPIO_Init_All(void)
 {
+    Rcc_Init();
+    Rcc_Enable(RCC_GPIOA);
+    Rcc_Enable(RCC_GPIOB);
+    Rcc_Enable(RCC_SYSCFG);
     // PA0 -> Analog input for ADC
     GPIO_Init(GPIO_A, 0, GPIO_ANALOG, GPIO_NO_PULL_DOWN);
 
@@ -125,6 +144,9 @@ void GPIO_Init_All(void)
     // Set alternate function AF1 (TIM2) for PB10
     GPIOB->AFR[1] &= ~(0xF << ((10 - 8) * 4));
     GPIOB->AFR[1] |=  (1 << ((10 - 8) * 4));
+
+    //init for emergency button
+    GPIO_Init(GPIO_B, Emergency_Button, GPIO_INPUT, GPIO_PULL_UP);  
 }
 
 void ADC_Init(void)
@@ -211,4 +233,20 @@ void SystemClock_Config(void)
     RCC->CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1;
     RCC->CFGR |= RCC_CFGR_SW_PLL;
     while (!(RCC->CFGR & RCC_CFGR_SWS_PLL));
+}
+
+//Define Function Called From vector lookup Table
+// Emergency Stop (Overwrite EXTI15_10_IRQHandler)
+
+void EXTI15_10_IRQHandler(void) {
+    if (EXTI->PR & (1 << Emergency_Button)) { // Check if EXTI12 triggered
+        EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
+
+        //stop the motor and show “EMERGENCY STOP” message on LCD
+        Motor_Stop();            // Stop the motor
+        LCD_Clear();             // Optional
+        LCD_SetCursor(1, 0);
+        LCD_Print("Emergency Stop");
+
+    }
 }
