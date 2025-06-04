@@ -65,31 +65,30 @@ int main(void) {
     LCD_Print("B.SP. M.SP. Cnt");
 
     LCD_SetCursor(1, 0);
-    LCD_PrintNumber((uint32_t)(conveyor_speed));
+    LCD_PrintNumber((uint32_t) (conveyor_speed));
 
 
     adc_filtered = ADC_Read();
 
     while (1) {
-            // --- Motor speed control ---
-            adc_value = ADC_Read();
-            // Optionally apply filtering:
-            // adc_filtered = ADC_Filter(adc_value);
-            // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-            motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
-    EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
-    EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
-    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
-
-
-    while (1)
-    {
         // --- Motor speed control ---
         adc_value = ADC_Read();
         // Optionally apply filtering:
         // adc_filtered = ADC_Filter(adc_value);
         // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
         motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
+        EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
+        EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
+        NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
+
+
+        while (1) {
+            // --- Motor speed control ---
+            adc_value = ADC_Read();
+            // Optionally apply filtering:
+            // adc_filtered = ADC_Filter(adc_value);
+            // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
+            motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
 
             PWM_SetDutyCycle(motor_speed_percent);
 
@@ -129,9 +128,9 @@ int main(void) {
             prevButtonState = currButtonState;
             // main loop delay
             Delay_ms(10);
+        }
     }
 }
-
 // ----------------------------- Initialization -----------------------------
 
 void GPIO_Init_All(void)
@@ -251,10 +250,11 @@ void EXTI15_10_IRQHandler(void) {
         EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
         //stop the motor and show “EMERGENCY STOP” message on LCD
-        Motor_Stop();            // Stop the motor
+//        Motor_Stop();            // Stop the motor
         LCD_Clear();             // Optional
         LCD_SetCursor(1, 0);
         LCD_Print("Emergency Stop");
 
     }
 }
+
