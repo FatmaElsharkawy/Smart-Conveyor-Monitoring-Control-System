@@ -2,6 +2,7 @@
 #include "LCD.h"
 #include "Gpio.h"
 #include <stdint.h>
+#include "Speed_calc.h"
 
 // Aliases for clarity
 #ifndef uint32
@@ -20,6 +21,7 @@ volatile uint8_t motor_speed_percent = 0;
 volatile uint16_t adc_filtered = 0;
 uint8_t prevButtonState = 1;
 uint32_t fallingEdgeCount = 0;
+static float conveyor_speed = 0.0f;
 
 // Constants
 #define ADC_MAX_VALUE     4095
@@ -38,76 +40,76 @@ void LCD_DisplayMotorSpeed(uint8_t speed_percent);
 void Delay_ms(uint32_t ms);
 
 // Main function
-int main(void)
-{
+int main(void) {
     SystemClock_Config();
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIODEN;
 
     GPIO_Init_All();
     ADC_Init();
     PWM_Init();
     LCD_Init();
-
+    Time_Capture_Init();
+    conveyor_speed = Get_Belt_Speed();
     LCD_Clear();
     LCD_SetCursor(0, 0);
-    LCD_Print("Speed:     Cnt:");
+    LCD_Print("B.SP. M.SP. Cnt");
+
+    LCD_SetCursor(1, 0);
+    LCD_PrintNumber((uint32_t)(conveyor_speed));
+
 
     adc_filtered = ADC_Read();
 
-    while (1)
-    {
-        // --- Motor speed control ---
-        adc_value = ADC_Read();
-        // Optionally apply filtering:
-        // adc_filtered = ADC_Filter(adc_value);
-        // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-        motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
+    while (1) {
+            // --- Motor speed control ---
+            adc_value = ADC_Read();
+            // Optionally apply filtering:
+            // adc_filtered = ADC_Filter(adc_value);
+            // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
+            motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
 
-        PWM_SetDutyCycle(motor_speed_percent);
+            PWM_SetDutyCycle(motor_speed_percent);
 
-        // Efficient LCD update (only when speed changes)
-        static uint8_t prev_speed = 255;
-        if (motor_speed_percent != prev_speed)
-        {
-            LCD_SetCursor(1, 0);
-            LCD_Print("Speed: ");
-            LCD_SetCursor(1, 6); // after "Speed: "
-            LCD_Print("   ");    // clear old value
-            LCD_SetCursor(1, 6);
-            LCD_PrintNumber(motor_speed_percent);
-            LCD_Print("%");
-            prev_speed = motor_speed_percent;
-        }
-
-        // --- Object counter ---
-        uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
-        if (prevButtonState == 1 && currButtonState == 0)
-        {
-            Delay_ms(50); // debounce
-            currButtonState = GPIO_ReadPin(GPIO_A, 1);
-            if (currButtonState == 0)
-            {
-                fallingEdgeCount++;
-                LCD_SetCursor(0, 0);
-                LCD_Print("Object Count:");
-                LCD_SetCursor(0, 14); // or adjust as needed
-                LCD_Print("     ");    // clear old number
-                LCD_SetCursor(0, 14);
-                LCD_PrintNumber(fallingEdgeCount);
-
-                while (GPIO_ReadPin(GPIO_A, 1) == 0)
-                {
-                    Delay_ms(10); // wait for release
-                }
-                Delay_ms(50); // debounce after release
+            // Efficient LCD update (only when speed changes)
+            static uint8_t prev_speed = 255;
+            if (motor_speed_percent != prev_speed) {
+//                LCD_SetCursor(1, 0);
+//                LCD_Print("Speed: ");
+                LCD_SetCursor(1, 6); // after "Speed: "
+                LCD_Print("   ");    // clear old value
+                LCD_SetCursor(1, 6);
+                LCD_PrintNumber(motor_speed_percent);
+                LCD_Print("%");
+                prev_speed = motor_speed_percent;
             }
-        }
-        prevButtonState = currButtonState;
 
-        Delay_ms(10); // main loop delay
+            // --- Object counter ---
+            uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
+            if (prevButtonState == 1 && currButtonState == 0) {
+                Delay_ms(50); // debounce
+                currButtonState = GPIO_ReadPin(GPIO_A, 1);
+                if (currButtonState == 0) {
+                    fallingEdgeCount++;
+//                    LCD_SetCursor(0, 0);
+//                    LCD_Print("Object Count:");
+                    LCD_SetCursor(1, 14); // or adjust as needed
+                    LCD_Print("     ");    // clear old number
+                    LCD_SetCursor(1, 14);
+                    LCD_PrintNumber(fallingEdgeCount);
+
+                    while (GPIO_ReadPin(GPIO_A, 1) == 0) {
+                        Delay_ms(10); // wait for release
+                    }
+                    Delay_ms(50); // debounce after release
+                }
+            }
+            prevButtonState = currButtonState;
+            // main loop delay
+            Delay_ms(10);
     }
-
 }
+
+
 
 // ----------------------------- Initialization -----------------------------
 
