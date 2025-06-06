@@ -6,33 +6,39 @@
 #include "stm32f4xx.h"
 #include "GPIO.h"
 #include "Std_Types.h"
+#include <stdio.h>
 
 static volatile uint32 time_capture_1 = 0;
 static volatile uint32 time_capture_2 = 0;
 
 void Capture_Edge(void){
+
     while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for capture event
-    time_capture_1 = TIM2->CCR1; // Read the capture value
+    time_capture_1 = TIM3->CCR1; // Read the capture value
     TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag
+    TIM3->CNT = 0; // Reset the timer counter
     while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for the next capture event
-    time_capture_2 = TIM2->CCR1; // Read the next capture value
+    time_capture_2 = TIM3->CCR1; // Read the next capture value
     TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag again
 }
 
 void Time_Capture_Init(void) {
 
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+
     // pin a6 as alternate function TIM3_CH1
-    GPIO_Init(GPIO_A, 6, GPIO_AF, GPIO_PUSH_PULL); // Configure PA6 as alternate function with pull-up
+    GPIO_Init(GPIO_A, 6, GPIO_AF, GPIO_PUSH_PULL);
     GPIOA->AFR[0] &= ~(0xF << (6 * 4)); // Clear alternate function bits for PA6
     GPIOA->AFR[0] |= (2 << (6 * 4)); // Set AF2 (TIM3) for PA6
+
     // Configure TIM3 for input capture
-    TIM3->PSC = 83; // Prescaler to get 1 MHz clock (assuming 84 MHz system clock)
+    TIM3->PSC = 83; // Prescaler to get 1 MHz clock
     TIM3->ARR = 0xFFFF; // Max value for 16-bit timer
     TIM3->CCMR1 &= ~TIM_CCMR1_CC1S; // Clear CC1S bits
     TIM3->CCMR1 |= TIM_CCMR1_CC1S_0; // Set CC1S to 01 (input capture on TI1)
     TIM3->CCMR1 |= TIM_CCMR1_IC1F_0 | TIM_CCMR1_IC1F_1; // Set input filter (fdiv = 16)
     TIM3->CCER |= TIM_CCER_CC1E; // Enable capture on channel 1
+
     TIM3->CR1 |= TIM_CR1_CEN; // Enable the timer
 
 }
@@ -40,12 +46,11 @@ void Time_Capture_Init(void) {
 
 float Get_Belt_Speed(void) {
     uint32 dt = 0;
-    // Capture the time difference between two edges
     Capture_Edge();
-    time_capture_1 = time_capture_1;
-    time_capture_2 = time_capture_2;
 
-    dt = (time_capture_2 >= time_capture_1) ? (time_capture_2 - time_capture_1) : ((0xFFFF - time_capture_1) + time_capture_2 );
+    dt = time_capture_2; // dt in timer ticks
+
+//    dt = (time_capture_2 >= time_capture_1) ? (time_capture_2 - time_capture_1) : ((0xFFFF - time_capture_1) + time_capture_2 );
     if (dt == 0) return 0.0f;   // prevent div/0
 
     return 1000000.0f / dt;     // freq = 1 / period (in seconds)

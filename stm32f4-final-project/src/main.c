@@ -61,6 +61,7 @@ int main(void) {
     LCD_Init();
     Time_Capture_Init();
     conveyor_speed = Get_Belt_Speed();
+
     LCD_Clear();
     LCD_SetCursor(0, 0);
     LCD_Print("B.SP. M.SP. Cnt");
@@ -233,7 +234,7 @@ void SystemClock_Config(void)
     while (!(RCC->CR & RCC_CR_HSIRDY));
 
     RCC->PLLCFGR = (16 << RCC_PLLCFGR_PLLM_Pos) |
-                   (336 << RCC_PLLCFGR_PLLN_Pos) |
+                   (168 << RCC_PLLCFGR_PLLN_Pos) |
                    (0 << RCC_PLLCFGR_PLLP_Pos) |
                    (RCC_PLLCFGR_PLLSRC_HSI) |
                    (7 << RCC_PLLCFGR_PLLQ_Pos);
