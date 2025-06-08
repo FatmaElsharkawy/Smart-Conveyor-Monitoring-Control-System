@@ -1,4 +1,4 @@
-#include "stm32f4xx.h"
+// #include "stm32f4xx.h"
 #include "LCD.h"
 #include "Gpio.h"
 #include <stdint.h>
@@ -6,22 +6,15 @@
 #include "Rcc.h"
 #include "EXTI.h"
 
-// Aliases for clarity
-#ifndef uint32
-#define uint32 uint32_t
-#endif
-#ifndef uint8
-#define uint8 uint8_t
-#endif
-#ifndef uint16
-#define uint16 uint16_t
-#endif
+// #define uint32 uint32_t
+// #define uint8 uint8_t
+// #define uint16 uint16_t
 
 // Global variables
 volatile uint16_t adc_value = 0;
 volatile uint8_t motor_speed_percent = 0;
 volatile uint16_t adc_filtered = 0;
-uint8_t prevButtonState = 1;
+uint8_t prevButtonState = 1; // Object detection button
 uint32_t fallingEdgeCount = 0;
 static float conveyor_speed = 0.0f;
 
@@ -48,6 +41,7 @@ uint16_t ADC_Filter(uint16_t new_value);
 void PWM_SetDutyCycle(uint8_t duty_percent);
 void LCD_DisplayMotorSpeed(uint8_t speed_percent);
 void Delay_ms(uint32_t ms);
+void delay();
 void Motor_Stop(void);
 
 // Main function
@@ -73,7 +67,7 @@ int main(void) {
     adc_filtered = ADC_Read();
 
     while (1) {
-        // --- Motor speed control ---
+        // --- Motor speed control --- //
         adc_value = ADC_Read();
         // Optionally apply filtering:
         // adc_filtered = ADC_Filter(adc_value);
@@ -85,7 +79,7 @@ int main(void) {
 
 
         while (1) {
-            // --- Motor speed control ---
+            // --- Motor speed control --- //
             adc_value = ADC_Read();
             // Optionally apply filtering:
             // adc_filtered = ADC_Filter(adc_value);
@@ -97,8 +91,6 @@ int main(void) {
             // Efficient LCD update (only when speed changes)
             static uint8_t prev_speed = 255;
             if (motor_speed_percent != prev_speed) {
-//                LCD_SetCursor(1, 0);
-//                LCD_Print("Speed: ");
                 LCD_SetCursor(1, 6); // after "Speed: "
                 LCD_Print("   ");    // clear old value
                 LCD_SetCursor(1, 6);
@@ -107,33 +99,22 @@ int main(void) {
                 prev_speed = motor_speed_percent;
             }
 
-            // --- Object counter ---
+            // --- Object Detection and Counting --- //
             uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
             if (prevButtonState == 1 && currButtonState == 0) {
-                Delay_ms(50); // debounce
+                delay();
                 currButtonState = GPIO_ReadPin(GPIO_A, 1);
-                if (currButtonState == 0) {
                     fallingEdgeCount++;
-//                    LCD_SetCursor(0, 0);
-//                    LCD_Print("Object Count:");
-                    LCD_SetCursor(1, 14); // or adjust as needed
+                    LCD_SetCursor(1, 14);
                     LCD_Print("     ");    // clear old number
                     LCD_SetCursor(1, 14);
                     LCD_PrintNumber(fallingEdgeCount);
-
-                    while (GPIO_ReadPin(GPIO_A, 1) == 0) {
-                        Delay_ms(10); // wait for release
-                    }
-                    Delay_ms(50); // debounce after release
-                }
             }
             prevButtonState = currButtonState;
-            // main loop delay
-            Delay_ms(10);
         }
     }
 }
-// ----------------------------- Initialization -----------------------------
+// ----------------------------- Initialization ----------------------------- //
 
 void GPIO_Init_All(void)
 {
@@ -144,7 +125,7 @@ void GPIO_Init_All(void)
     // PA0 -> Analog input for ADC
     GPIO_Init(GPIO_A, 0, GPIO_ANALOG, GPIO_NO_PULL_DOWN);
 
-    // PA1 -> Button input
+    // PA1 -> Object Detection Simulation Button
     GPIO_Init(GPIO_A, 1, GPIO_INPUT, GPIO_PULL_UP);
 
     // PB10 -> PWM output (TIM2 CH3)
@@ -211,20 +192,10 @@ void LCD_DisplayMotorSpeed(uint8_t speed_percent)
     LCD_Print("%");
 }
 
-// ----------------------------- Utility Functions -----------------------------
-
-void Delay_ms(uint32_t ms)
-{
-    SysTick->LOAD = 84000 - 1;  // 1ms at 84MHz
-    SysTick->VAL = 0;
-    SysTick->CTRL = 5;          // Enable SysTick, no interrupt
-
-    for (uint32_t i = 0; i < ms; i++)
-    {
-        while (!(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk));
+// ----------------------------- Utility Functions ----------------------------- //
+void delay() {
+    for (int i = 0; i < 100000; i++) {
     }
-
-    SysTick->CTRL = 0;
 }
 
 void SystemClock_Config(void)
