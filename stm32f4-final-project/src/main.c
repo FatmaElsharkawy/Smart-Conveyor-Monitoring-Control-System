@@ -41,7 +41,6 @@ uint16_t ADC_Filter(uint16_t new_value);
 void PWM_SetDutyCycle(uint8_t duty_percent);
 void LCD_DisplayMotorSpeed(uint8_t speed_percent);
 void Delay_ms(uint32_t ms);
-void delay();
 void Motor_Stop(void);
 
 // Main function
@@ -67,51 +66,44 @@ int main(void) {
     adc_filtered = ADC_Read();
 
     while (1) {
-        // --- Motor speed control --- //
-        adc_value = ADC_Read();
-        // Optionally apply filtering:
-        // adc_filtered = ADC_Filter(adc_value);
-        // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-        motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
+        // Emergency Interrupt //
         EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
         EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
         NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
 
+        // --- Motor speed control --- //
+        adc_value = ADC_Read();
+        // adc_filtered = ADC_Filter(adc_value);
+        // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
+        motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
+        PWM_SetDutyCycle(motor_speed_percent);
 
-        while (1) {
-            // --- Motor speed control --- //
-            adc_value = ADC_Read();
-            // Optionally apply filtering:
-            // adc_filtered = ADC_Filter(adc_value);
-            // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-            motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
-
-            PWM_SetDutyCycle(motor_speed_percent);
-
-            // Efficient LCD update (only when speed changes)
-            static uint8_t prev_speed = 255;
-            if (motor_speed_percent != prev_speed) {
-                LCD_SetCursor(1, 6); // after "Speed: "
-                LCD_Print("   ");    // clear old value
-                LCD_SetCursor(1, 6);
-                LCD_PrintNumber(motor_speed_percent);
-                LCD_Print("%");
-                prev_speed = motor_speed_percent;
-            }
-
-            // --- Object Detection and Counting --- //
-            uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
-            if (prevButtonState == 1 && currButtonState == 0) {
-                delay();
-                currButtonState = GPIO_ReadPin(GPIO_A, 1);
-                    fallingEdgeCount++;
-                    LCD_SetCursor(1, 14);
-                    LCD_Print("     ");    // clear old number
-                    LCD_SetCursor(1, 14);
-                    LCD_PrintNumber(fallingEdgeCount);
-            }
-            prevButtonState = currButtonState;
+        // LCD update (only when speed changes)
+        static uint8_t prev_speed = 255;
+        if (motor_speed_percent != prev_speed) {
+            LCD_SetCursor(1, 6); // after "Speed: "
+            LCD_Print("   ");    // clear old value
+            LCD_SetCursor(1, 6);
+            LCD_PrintNumber(motor_speed_percent);
+            LCD_Print("%");
+            prev_speed = motor_speed_percent;
         }
+
+        uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
+        if (prevButtonState == 1 && currButtonState == 0) {
+            Delay_ms(20); // Debounce delay (20 ms)
+            // Increment count and update LCD
+            fallingEdgeCount++;
+            LCD_SetCursor(1, 14);
+            LCD_Print("     ");    // clear old number
+            LCD_SetCursor(1, 14);
+            LCD_PrintNumber(fallingEdgeCount);
+            // Wait for button release to prevent multiple counts
+            while (GPIO_ReadPin(GPIO_A, 1) == 0) {
+                Delay_ms(10); // Check every 10 ms
+            }
+        }
+        prevButtonState = currButtonState;
     }
 }
 // ----------------------------- Initialization ----------------------------- //
@@ -193,9 +185,8 @@ void LCD_DisplayMotorSpeed(uint8_t speed_percent)
 }
 
 // ----------------------------- Utility Functions ----------------------------- //
-void delay() {
-    for (int i = 0; i < 100000; i++) {
-    }
+void Delay_ms(uint32_t ms) {
+    for (volatile uint32_t i = 0; i < ms * 8400; i++);
 }
 
 void SystemClock_Config(void)
