@@ -3,7 +3,7 @@
 //
 
 #include "PWM.h"
-#include "stm32f4xx.h"
+#include "PWM_Config.h"
 
 void PWM_Init(void)
 {
@@ -12,7 +12,7 @@ void PWM_Init(void)
     TIM2->PSC = 83;                        // 2. Prescaler: 84MHz / (83 + 1) = 1MHz timer clock
     TIM2->ARR = PWM_PERIOD;               // 3. Auto-reload: defines PWM period (e.g. 999 -> 1 kHz)
 
-    TIM2->CCR3 = 0;                        // 4. Start with 0% duty cycle
+    TIM2->CCR3 = 0;                        // 4. Start with 0% duty cycle,  Duty Cycle = (CCR3 / ARR) × 100%
 
     TIM2->CCMR2 |= TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2; // 5. Set PWM Mode 1
     TIM2->CCMR2 |= TIM_CCMR2_OC3PE;       // 6. Preload enable
