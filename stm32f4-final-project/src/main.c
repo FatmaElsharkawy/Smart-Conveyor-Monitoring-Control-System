@@ -6,10 +6,6 @@
 #include "Rcc.h"
 #include "EXTI.h"
 
-// #define uint32 uint32_t
-// #define uint8 uint8_t
-// #define uint16 uint16_t
-
 // Global variables
 volatile uint16_t adc_value = 0;
 volatile uint8_t motor_speed_percent = 0;
@@ -53,6 +49,11 @@ int main(void) {
     PWM_Init();
     LCD_Init();
     Time_Capture_Init();
+    // Emergency Interrupt //
+    EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
+    EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
+    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
+
     conveyor_speed = Get_Belt_Speed();
 
     LCD_Clear();
@@ -66,11 +67,6 @@ int main(void) {
     adc_filtered = ADC_Read();
 
     while (1) {
-        // Emergency Interrupt //
-        EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
-        EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
-        NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
-
         // --- Motor speed control --- //
         adc_value = ADC_Read();
         // adc_filtered = ADC_Filter(adc_value);
@@ -106,6 +102,7 @@ int main(void) {
         prevButtonState = currButtonState;
     }
 }
+
 // ----------------------------- Initialization ----------------------------- //
 
 void GPIO_Init_All(void)
