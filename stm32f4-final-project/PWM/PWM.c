@@ -22,8 +22,9 @@ void PWM_Init(void)
     TIM2->CR1 |= TIM_CR1_ARPE | TIM_CR1_CEN; // 8. Enable auto-reload and counter
 }
 
-void PWM_SetDutyCycle(uint8_t duty_percent) // change the motor speed by controlling how long the signal is HIGH during each cycle.
+void PWM_SetDutyCycle(uint8_t duty_percent)
 {
     if (duty_percent > 100) duty_percent = 100;
-    TIM2->CCR3 = (PWM_PERIOD * duty_percent) / 100;
+    // Add +50 for rounding instead of truncation
+    TIM2->CCR3 = ((uint32_t)PWM_PERIOD * duty_percent + 50) / 100;
 }

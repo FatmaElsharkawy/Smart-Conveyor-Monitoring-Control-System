@@ -26,10 +26,18 @@ uint16_t ADC_Read(void)
 
 uint16_t ADC_Filter(uint16_t new_value)
 {
+    // Fix potential issue: make sure adc_filtered is initialized
+    if (adc_filtered == 0) {
+        adc_filtered = new_value; // Initialize on first call
+        return adc_filtered;
+    }
     return (adc_filtered * (FILTER_ALPHA - 1) + new_value) / FILTER_ALPHA;
 }
 
 uint8_t ADC_GetSpeedPercent(uint16_t adc_value)
 {
-    return (adc_value * 100) / ADC_MAX_VALUE;
+    // Use 32-bit arithmetic to prevent overflow, then cast back
+    uint32_t temp = ((uint32_t)adc_value * 100UL) / ADC_MAX_VALUE;
+    if (temp > 100) temp = 100; // Safety check
+    return (uint8_t)temp;
 }

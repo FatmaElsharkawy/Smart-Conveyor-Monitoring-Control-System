@@ -60,10 +60,10 @@ int main(void) {
 
         // --- Motor speed control --- //
         adc_value = ADC_Read();
-//         adc_filtered = ADC_Filter(adc_value);
-        adc_filtered = 4095;
+        adc_filtered = ADC_Filter(adc_value);
+//        adc_filtered = 4095;
         uint8_t speed_percent = ADC_GetSpeedPercent(adc_filtered);
-        Motor_SetSpeed(speed_percent);
+        Motor_SetSpeed((100 - speed_percent));
 
         // LCD update (only when speed changes)
         static uint8_t prev_speed = 255;
@@ -92,6 +92,7 @@ int main(void) {
         }
         prevButtonState = currButtonState;
     }
+
 }
 // ----------------------------- Initialization ----------------------------- //
 
