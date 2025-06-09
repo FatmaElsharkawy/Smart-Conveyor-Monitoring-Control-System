@@ -42,18 +42,30 @@ int main(void) {
     EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
     NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
 
-    conveyor_speed = Get_Belt_Speed();
+//    conveyor_speed = Get_Belt_Speed();
 
     LCD_Clear();
     LCD_SetCursor(0, 0);
     LCD_Print("B.SP. M.SP. Cnt");
 
-    LCD_SetCursor(1, 0);
-    LCD_PrintNumber((uint32_t) (conveyor_speed));
+//    LCD_SetCursor(1, 0);
+//    LCD_PrintNumber((uint32_t) (conveyor_speed));
 
     adc_filtered = ADC_Read();
 
     while (1) {
+        // --- Belt speed calculation --- //
+        //making sure to only change lcd reading when speed changes
+        conveyor_speed = Get_Belt_Speed();
+        static float old_speed = -1.0f; // Initialize to an invalid value
+        if (conveyor_speed != old_speed) {
+            LCD_SetCursor(1, 0);
+            LCD_Print("   ");    // clear old value
+            LCD_SetCursor(1, 0);
+            LCD_PrintNumber((uint32_t) (conveyor_speed));
+            LCD_Print("Hz");
+            old_speed = conveyor_speed;
+        }
         // --- Motor speed control --- //
         adc_value = ADC_Read();
         adc_filtered = ADC_Filter(adc_value);

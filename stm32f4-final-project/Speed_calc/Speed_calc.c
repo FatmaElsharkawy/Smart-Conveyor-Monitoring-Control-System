@@ -12,15 +12,25 @@ static volatile uint32 time_capture_1 = 0;
 static volatile uint32 time_capture_2 = 0;
 
 void Capture_Edge(void){
+    uint32_t timeout;
 
-    while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for capture event
-    time_capture_1 = TIM3->CCR1; // Read the capture value
-    TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag
-    TIM3->CNT = 0; // Reset the timer counter
-    while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for the next capture event
-    time_capture_2 = TIM3->CCR1; // Read the next capture value
-    TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag again
+    // First edge
+    TIM3->SR &= ~TIM_SR_CC1IF;
+    TIM3->CNT = 0; // Optional
+    timeout = 1000000;
+    while (!(TIM3->SR & TIM_SR_CC1IF) && timeout--);
+    if (timeout == 0) return;
+    time_capture_1 = TIM3->CCR1;
+    TIM3->SR &= ~TIM_SR_CC1IF;
+
+    // Second edge
+    timeout = 1000000;
+    while (!(TIM3->SR & TIM_SR_CC1IF) && timeout--);
+    if (timeout == 0) return;
+    time_capture_2 = TIM3->CCR1;
+    TIM3->SR &= ~TIM_SR_CC1IF;
 }
+
 
 void Time_Capture_Init(void) {
 
@@ -38,7 +48,7 @@ void Time_Capture_Init(void) {
     TIM3->CCMR1 |= TIM_CCMR1_CC1S_0; // Set CC1S to 01 (input capture on TI1)
     TIM3->CCMR1 |= TIM_CCMR1_IC1F_0 | TIM_CCMR1_IC1F_1; // Set input filter (fdiv = 16)
     TIM3->CCER |= TIM_CCER_CC1E; // Enable capture on channel 1
-
+    TIM3->CCER &= ~TIM_CCER_CC1P; // Capture on rising edge
     TIM3->CR1 |= TIM_CR1_CEN; // Enable the timer
 
 }
@@ -48,9 +58,9 @@ float Get_Belt_Speed(void) {
     uint32 dt = 0;
     Capture_Edge();
 
-    dt = time_capture_2; // dt in timer ticks
+//    dt = time_capture_2; // dt in timer ticks
 
-//    dt = (time_capture_2 >= time_capture_1) ? (time_capture_2 - time_capture_1) : ((0xFFFF - time_capture_1) + time_capture_2 );
+    dt = (time_capture_2 >= time_capture_1) ? (time_capture_2 - time_capture_1) : ((0xFFFF - time_capture_1) + time_capture_2 );
     if (dt == 0) return 0.0f;   // prevent div/0
 
     return 1000000.0f / dt;     // freq = 1 / period (in seconds)
