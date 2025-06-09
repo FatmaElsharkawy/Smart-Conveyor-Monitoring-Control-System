@@ -1,4 +1,3 @@
-// #include "stm32f4xx.h"
 #include "LCD.h"
 #include "GPIO.h"
 #include <stdint.h>
@@ -30,7 +29,7 @@ void Delay_ms(uint32_t ms);
 // Main function
 int main(void) {
     SystemClock_Config();
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
+    RCC_AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
 
     GPIO_Init_All();
     ADC_Init();
@@ -42,30 +41,18 @@ int main(void) {
     EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
     NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
 
-//    conveyor_speed = Get_Belt_Speed();
+    conveyor_speed = Get_Belt_Speed();
 
     LCD_Clear();
     LCD_SetCursor(0, 0);
     LCD_Print("B.SP. M.SP. Cnt");
 
-//    LCD_SetCursor(1, 0);
-//    LCD_PrintNumber((uint32_t) (conveyor_speed));
+    LCD_SetCursor(1, 0);
+    LCD_PrintNumber((uint32_t) (conveyor_speed));
 
     adc_filtered = ADC_Read();
 
     while (1) {
-        // --- Belt speed calculation --- //
-        //making sure to only change lcd reading when speed changes
-        conveyor_speed = Get_Belt_Speed();
-        static float old_speed = -1.0f; // Initialize to an invalid value
-        if (conveyor_speed != old_speed) {
-            LCD_SetCursor(1, 0);
-            LCD_Print("   ");    // clear old value
-            LCD_SetCursor(1, 0);
-            LCD_PrintNumber((uint32_t) (conveyor_speed));
-            LCD_Print("Hz");
-            old_speed = conveyor_speed;
-        }
         // --- Motor speed control --- //
         adc_value = ADC_Read();
         adc_filtered = ADC_Filter(adc_value);
@@ -121,8 +108,7 @@ void GPIO_Init_All(void)
     GPIO_Init(GPIO_B, 10, GPIO_AF, GPIO_PUSH_PULL);
 
     // Set alternate function AF1 (TIM2) for PB10
-    GPIOB->AFR[1] &= ~(0xF << ((10 - 8) * 4));
-    GPIOB->AFR[1] |=  (1 << ((10 - 8) * 4));
+    GPIO_Init(GPIO_B, 10, GPIO_AF, 1);  // 1 is the AF number
 
     //init for emergency button
     GPIO_Init(GPIO_B, Emergency_Button, GPIO_INPUT, GPIO_PULL_UP);
@@ -145,30 +131,30 @@ void Delay_ms(uint32_t ms) {
 void SystemClock_Config(void)
 {
     // Assume HSI (16 MHz) -> PLL -> SYSCLK = 84 MHz
-    RCC->CR |= RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
+    RCC_CR |= RCC_CR_HSION;
+    while (!(RCC_CR & RCC_CR_HSIRDY));
 
-    RCC->PLLCFGR = (16 << RCC_PLLCFGR_PLLM_Pos) |
+    RCC_PLLCFGR = (16 << RCC_PLLCFGR_PLLM_Pos) |
                    (168 << RCC_PLLCFGR_PLLN_Pos) |
                    (0 << RCC_PLLCFGR_PLLP_Pos) |
                    (RCC_PLLCFGR_PLLSRC_HSI) |
                    (7 << RCC_PLLCFGR_PLLQ_Pos);
 
-    RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
+    RCC_CR |= RCC_CR_PLLON;
+    while (!(RCC_CR & RCC_CR_PLLRDY));
 
-    FLASH->ACR |= FLASH_ACR_LATENCY_2WS;
-    RCC->CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1;
-    RCC->CFGR |= RCC_CFGR_SW_PLL;
-    while (!(RCC->CFGR & RCC_CFGR_SWS_PLL));
+    FLASH_ACR |= FLASH_ACR_LATENCY_2WS;
+    RCC_CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1;
+    RCC_CFGR |= RCC_CFGR_SW_PLL;
+    while (!(RCC_CFGR & RCC_CFGR_SWS_PLL));
 }
 
 //Define Function Called From vector lookup Table
 // Emergency Stop (Overwrite EXTI15_10_IRQHandler)
 
 void EXTI15_10_IRQHandler(void) {
-    if (EXTI->PR & (1 << Emergency_Button)) { // Check if EXTI12 triggered
-        EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
+    if (EXTI_PR & (1 << Emergency_Button)) { // Check if EXTI12 triggered
+        EXTI_PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
         //stop the motor and show "EMERGENCY STOP" message on LCD
         Motor_Stop();            // Stop the motor
