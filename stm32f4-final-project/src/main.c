@@ -72,16 +72,10 @@ int main(void) {
 
     adc_filtered = ADC_Read();
 
-    while (1) {
-        // --- Motor speed control ---
-        adc_value = ADC_Read();
-        // Optionally apply filtering:
-        // adc_filtered = ADC_Filter(adc_value);
-        // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-        motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
-        EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
-        EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
-        NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
+    motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
+    EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
+    EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
+    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
 
 
         while (1) {
@@ -130,7 +124,7 @@ int main(void) {
             prevButtonState = currButtonState;
             // main loop delay
             Delay_ms(10);
-        }
+        
     }
 }
 // ----------------------------- Initialization -----------------------------
