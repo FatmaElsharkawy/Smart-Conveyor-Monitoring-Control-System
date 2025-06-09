@@ -8,16 +8,28 @@ uint32 addressMap[4] = {GPIOA_BASE_ADDR, GPIOB_BASE_ADDR, GPIOC_BASE_ADDR, GPIOD
 void GPIO_Init(uint8 PortName, uint8 PinNumber, uint8 PinMode, uint8 DefaultState) {
     uint8 addressIndex = PortName - GPIO_A;
     GpioType* gpioDevice = (GpioType*) addressMap[addressIndex];
+
+    // Clear mode bits first
     gpioDevice->GPIO_MODER &= ~(0x03 << (PinNumber * 2));
     gpioDevice->GPIO_MODER |= (PinMode << (PinNumber * 2));
+
     if (PinMode == GPIO_INPUT) {
         gpioDevice->GPIO_PUPDR &= ~(0x03 << (PinNumber * 2));
         gpioDevice->GPIO_PUPDR |= (DefaultState << (PinNumber * 2));
-    } else {
+    } else if (PinMode == GPIO_OUTPUT) {
         gpioDevice->GPIO_OTYPER &= ~(0x1 << PinNumber);
-        gpioDevice->GPIO_OTYPER |= (DefaultState << (PinNumber));
+        gpioDevice->GPIO_OTYPER |= (DefaultState << PinNumber);
+    } else if (PinMode == GPIO_AF) {
+        if (PinNumber < 8) {
+            gpioDevice->GPIO_AFRL &= ~(0xF << (PinNumber * 4));
+            gpioDevice->GPIO_AFRL |= (DefaultState << (PinNumber * 4));
+        } else {
+            gpioDevice->GPIO_AFRH &= ~(0xF << ((PinNumber - 8) * 4));
+            gpioDevice->GPIO_AFRH |= (DefaultState << ((PinNumber - 8) * 4));
+        }
     }
 }
+
 
 uint8 GPIO_WritePin(uint8 PortName, uint8 PinNumber, uint8 Data) {
     uint8 status = NOK;
