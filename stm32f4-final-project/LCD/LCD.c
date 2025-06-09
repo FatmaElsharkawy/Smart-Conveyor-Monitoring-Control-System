@@ -5,14 +5,6 @@ void LCD_Init(void) {
     Delay_ms(50); // Wait for LCD to power up
     LCD_SetPin(LCD_RW_PORT, LCD_RW_PIN, 0); // Set RW to write mode
 
-    // Initialize LCD in 4-bit mode
-    // Send 0x03 three times with delays
-    LCD_Write4Bits(0x03);
-    Delay_ms(5);
-    LCD_Write4Bits(0x03);
-    Delay_us(150);
-    LCD_Write4Bits(0x03);
-    Delay_us(150);
 
     // Set to 4-bit mode
     LCD_Write4Bits(0x02);
