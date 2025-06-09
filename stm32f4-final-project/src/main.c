@@ -1,23 +1,17 @@
 // #include "stm32f4xx.h"
 #include "LCD.h"
-#include "Gpio.h"
+#include "GPIO.h"
 #include <stdint.h>
 #include "Speed_calc.h"
 #include "Rcc.h"
 #include "EXTI.h"
+#include "ADC.h"
+#include "Motor.h"
 
 // Global variables
-volatile uint16_t adc_value = 0;
-volatile uint8_t motor_speed_percent = 0;
-volatile uint16_t adc_filtered = 0;
 uint8_t prevButtonState = 1; // Object detection button
 uint32_t fallingEdgeCount = 0;
 static float conveyor_speed = 0.0f;
-
-// Constants
-#define ADC_MAX_VALUE     4095
-#define FILTER_ALPHA      8
-#define PWM_PERIOD        999
 
 typedef struct {
     uint32 NVIC_ISER[8]; //Enable
@@ -30,14 +24,8 @@ typedef struct {
 // Function prototypes
 void SystemClock_Config(void);
 void GPIO_Init_All(void);
-void ADC_Init(void);
-void PWM_Init(void);
-uint16_t ADC_Read(void);
-uint16_t ADC_Filter(uint16_t new_value);
-void PWM_SetDutyCycle(uint8_t duty_percent);
 void LCD_DisplayMotorSpeed(uint8_t speed_percent);
 void Delay_ms(uint32_t ms);
-void Motor_Stop(void);
 
 // Main function
 int main(void) {
@@ -46,7 +34,7 @@ int main(void) {
 
     GPIO_Init_All();
     ADC_Init();
-    PWM_Init();
+    Motor_Init();
     LCD_Init();
     Time_Capture_Init();
     // Emergency Interrupt //
@@ -63,26 +51,25 @@ int main(void) {
     LCD_SetCursor(1, 0);
     LCD_PrintNumber((uint32_t) (conveyor_speed));
 
-
     adc_filtered = ADC_Read();
 
     while (1) {
         // --- Motor speed control --- //
         adc_value = ADC_Read();
-        // adc_filtered = ADC_Filter(adc_value);
-        // motor_speed_percent = (adc_filtered * 100) / ADC_MAX_VALUE;
-        motor_speed_percent = (adc_value * 100) / ADC_MAX_VALUE;
-        PWM_SetDutyCycle(motor_speed_percent);
+        adc_filtered = ADC_Filter(adc_value);
+//        adc_filtered = 4095;
+        uint8_t speed_percent = ADC_GetSpeedPercent(adc_filtered);
+        Motor_SetSpeed((100 - speed_percent));
 
         // LCD update (only when speed changes)
         static uint8_t prev_speed = 255;
-        if (motor_speed_percent != prev_speed) {
+        if (Motor_GetSpeed() != prev_speed) {
             LCD_SetCursor(1, 6); // after "Speed: "
             LCD_Print("   ");    // clear old value
             LCD_SetCursor(1, 6);
-            LCD_PrintNumber(motor_speed_percent);
+            LCD_PrintNumber(Motor_GetSpeed());
             LCD_Print("%");
-            prev_speed = motor_speed_percent;
+            prev_speed = Motor_GetSpeed();
         }
 
         uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
@@ -101,6 +88,7 @@ int main(void) {
         }
         prevButtonState = currButtonState;
     }
+
 }
 
 // ----------------------------- Initialization ----------------------------- //
@@ -126,50 +114,6 @@ void GPIO_Init_All(void)
 
     //init for emergency button
     GPIO_Init(GPIO_B, Emergency_Button, GPIO_INPUT, GPIO_PULL_UP);
-}
-
-void ADC_Init(void)
-{
-    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
-    ADC1->CR2 = 0;
-    ADC1->SQR3 = 0;            // Channel 0 (PA0)
-    ADC1->SMPR2 |= ADC_SMPR2_SMP0_1 | ADC_SMPR2_SMP0_0; // sampling time
-    ADC1->CR2 |= ADC_CR2_ADON;
-}
-
-uint16_t ADC_Read(void)
-{
-    ADC1->CR2 |= ADC_CR2_SWSTART;
-    while (!(ADC1->SR & ADC_SR_EOC));
-    return ADC1->DR;
-}
-
-uint16_t ADC_Filter(uint16_t new_value)
-{
-    return (adc_filtered * (FILTER_ALPHA - 1) + new_value) / FILTER_ALPHA;
-}
-
-void PWM_Init(void)
-{
-    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-
-    TIM2->PSC = 83;         // 84 MHz / (83+1) = 1 MHz
-    TIM2->ARR = PWM_PERIOD; // 1 kHz PWM
-    TIM2->CCR3 = 0;         // Start with 0% duty cycle
-    TIM2->CCMR2 |= TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2;
-    TIM2->CCMR2 |= TIM_CCMR2_OC3PE;
-    TIM2->CCER |= TIM_CCER_CC3E;
-    TIM2->CR1 |= TIM_CR1_ARPE | TIM_CR1_CEN;
-}
-
-void PWM_SetDutyCycle(uint8_t duty_percent)
-{
-    if (duty_percent > 100) duty_percent = 100;
-    TIM2->CCR3 = (PWM_PERIOD * duty_percent) / 100;
-}
-
-void Motor_Stop(void) {
-    PWM_SetDutyCycle(0); // 0% duty = no power to motor
 }
 
 void LCD_DisplayMotorSpeed(uint8_t speed_percent)
@@ -214,7 +158,7 @@ void EXTI15_10_IRQHandler(void) {
     if (EXTI->PR & (1 << Emergency_Button)) { // Check if EXTI12 triggered
         EXTI->PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
-        //stop the motor and show “EMERGENCY STOP” message on LCD
+        //stop the motor and show "EMERGENCY STOP" message on LCD
         Motor_Stop();            // Stop the motor
         LCD_Clear();             // Optional
         LCD_SetCursor(1, 0);
@@ -222,4 +166,3 @@ void EXTI15_10_IRQHandler(void) {
 
     }
 }
-
