@@ -2,7 +2,7 @@
 // Created by somai on 2025-06-09.
 //
 #include "ADC.h"
-#include "stm32f4xx.h"
+#include "ADC_Config.h"
 
 // Global variables
 volatile uint16_t adc_value = 0;
@@ -26,7 +26,7 @@ uint16_t ADC_Read(void)
 
 uint16_t ADC_Filter(uint16_t new_value)
 {
-    // Fix potential issue: make sure adc_filtered is initialized
+
     if (adc_filtered == 0) {
         adc_filtered = new_value; // Initialize on first call
         return adc_filtered;
