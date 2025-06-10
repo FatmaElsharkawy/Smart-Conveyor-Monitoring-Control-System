@@ -1,4 +1,7 @@
-#include "LCD.h"
+//
+// Created by somai on 2025-06-10.
+//
+#include "LCD.h"More actions
 #include "GPIO.h"
 #include <stdint.h>
 #include "Speed_calc.h"
@@ -19,7 +22,6 @@ typedef struct {
 
 #define NVIC        ((NVICType*) 0xE000E100)
 #define Emergency_Button              12
-#define Reset_Button                  13
 
 // Function prototypes
 void SystemClock_Config(void);
@@ -30,7 +32,7 @@ void Delay_ms(uint32_t ms);
 // Main function
 int main(void) {
     SystemClock_Config();
-    //RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
+    RCC_AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
 
     GPIO_Init_All();
     ADC_Init();
@@ -39,17 +41,18 @@ int main(void) {
     Time_Capture_Init();
     // Emergency Interrupt //
     EXTI_Init(GPIO_B, Emergency_Button, RISING_AND_FALLING);
-    EXTI_Init(GPIO_B, Reset_Button, RISING_AND_FALLING);
     EXTI_Enable(Emergency_Button); // Enable pin E12 (EXTI->IMR |= (0x1 << 12))
-    EXTI_Enable(Reset_Button);
-    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Emergency_button and Reset_button
+    NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Button_LED
 
+//    conveyor_speed = Get_Belt_Speed();
 //    conveyor_speed = Get_Belt_Speed();
 
     LCD_Clear();
     LCD_SetCursor(0, 0);
     LCD_Print("B.SP. M.SP. Cnt");
 
+    LCD_SetCursor(1, 0);
+    LCD_PrintNumber((uint32_t) (conveyor_speed));
 //    LCD_SetCursor(1, 0);
 //    LCD_PrintNumber((uint32_t) (conveyor_speed));
 
@@ -79,8 +82,10 @@ int main(void) {
         // LCD update (only when speed changes)
         static uint8_t prev_speed = 255;
         if (Motor_GetSpeed() != prev_speed) {
+            LCD_SetCursor(1, 6); // after "Speed: "
             LCD_SetCursor(1, 7); // after "Speed: "
             LCD_Print("   ");    // clear old value
+            LCD_SetCursor(1, 6);
             LCD_SetCursor(1, 7);
             LCD_PrintNumber(Motor_GetSpeed());
             LCD_Print("%");
@@ -89,7 +94,7 @@ int main(void) {
 
         uint8_t currButtonState = GPIO_ReadPin(GPIO_A, 1);
         if (prevButtonState == 1 && currButtonState == 0) {
-            Delay_ms(20); // Debounce delay (20 ms)
+//            Delay_ms(20); // Debounce delay (20 ms)
             // Increment count and update LCD
             fallingEdgeCount++;
             LCD_SetCursor(1, 14);
@@ -97,9 +102,9 @@ int main(void) {
             LCD_SetCursor(1, 14);
             LCD_PrintNumber(fallingEdgeCount);
             // Wait for button release to prevent multiple counts
-            while (GPIO_ReadPin(GPIO_A, 1) == 0) {
-                Delay_ms(10); // Check every 10 ms
-            }
+//            while (GPIO_ReadPin(GPIO_A, 1) == 0) {
+//                Delay_ms(10); // Check every 10 ms
+//            }
         }
         prevButtonState = currButtonState;
     }
@@ -128,11 +133,7 @@ void GPIO_Init_All(void)
 
     //init for emergency button
     GPIO_Init(GPIO_B, Emergency_Button, GPIO_INPUT, GPIO_PULL_UP);
-    GPIO_Init(GPIO_B, Reset_Button, GPIO_INPUT, GPIO_PULL_UP);
 }
-
-
-// ----------------------------- Utility Functions ----------------------------- //
 
 void LCD_DisplayMotorSpeed(uint8_t speed_percent)
 {
@@ -143,57 +144,48 @@ void LCD_DisplayMotorSpeed(uint8_t speed_percent)
     LCD_Print("%");
 }
 
+// ----------------------------- Utility Functions ----------------------------- //
 void Delay_ms(uint32_t ms) {
     for (volatile uint32_t i = 0; i < ms * 8400; i++);
-} 
-
-void SystemClock_Config(void) // this function configure the speed of the system to be 84 hz instead of 16 (optimization)
-{
-
-    //Step 1: Turn on the internal clock (HSI, 16 MHz) --> HSI is the oscillator (like engine of a system)
-    RCC->CR |= RCC_CR_HSION;
-    while (!(RCC->CR & RCC_CR_HSIRDY));
-
-
-    // Step 2: Configure PLL (phase locked loop) Divide by 16 → Now it’s 1 MHz Multiply by 168 → 168 MHz, Divide by 2 → Final system clock = 84 MHz
-    RCC->PLLCFGR = (16 << RCC_PLLCFGR_PLLM_Pos) |
-                   (168 << RCC_PLLCFGR_PLLN_Pos) |
-                   (0 << RCC_PLLCFGR_PLLP_Pos) |
-                   (RCC_PLLCFGR_PLLSRC_HSI) |
-                   (7 << RCC_PLLCFGR_PLLQ_Pos);
-    
-    //Step 3:  Turn on the PLL
-    RCC->CR |= RCC_CR_PLLON;
-    while (!(RCC->CR & RCC_CR_PLLRDY));
-    // tell flash memory to wait a little between operations 
-    FLASH->ACR |= FLASH_ACR_LATENCY_2WS;
-    //Set the speeds of internal roads (buses)
-    RCC->CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1;
-    
-    //tell the system to use the new fast clock (PLL)
-    RCC->CFGR |= RCC_CFGR_SW_PLL;
-    while (!(RCC->CFGR & RCC_CFGR_SWS_PLL));
 }
 
+void SystemClock_Config(void)
+{
+    // Assume HSI (16 MHz) -> PLL -> SYSCLK = 84 MHz
+    RCC_CR |= RCC_CR_HSION;
+    while (!(RCC_CR & RCC_CR_HSIRDY));
+
+    RCC_PLLCFGR = (16 << RCC_PLLCFGR_PLLM_Pos) |
+                  (168 << RCC_PLLCFGR_PLLN_Pos) |
+                  (0 << RCC_PLLCFGR_PLLP_Pos) |
+                  (RCC_PLLCFGR_PLLSRC_HSI) |
+                  (7 << RCC_PLLCFGR_PLLQ_Pos);
+
+    RCC_CR |= RCC_CR_PLLON;
+    while (!(RCC_CR & RCC_CR_PLLRDY));
+
+    FLASH_ACR |= FLASH_ACR_LATENCY_2WS;
+    RCC_CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1;
+    RCC_CFGR |= RCC_CFGR_SW_PLL;
+    while (!(RCC_CFGR & RCC_CFGR_SWS_PLL));
+}
+
+//Define Function Called From vector lookup Table
+// Emergency Stop (Overwrite EXTI15_10_IRQHandler)
+
 void EXTI15_10_IRQHandler(void) {
-    // Emergency Stop (PB12)
-    if (EXTI->PR & (1 << Emergency_Button)) {
-        EXTI->PR |= (1 << Emergency_Button); // Clear pending
+    if (EXTI_PR & (1 << Emergency_Button)) { // Check if EXTI12 triggered
+        EXTI_PR |= (1 << Emergency_Button); // Clear pending bit by writing 1
 
-        Motor_Stop();
-        LCD_Clear();
-        LCD_SetCursor(1, 0);
-        LCD_Print("Emergency Stop");
-    }
-
-    // Reset Button (PB13)
-    if (EXTI->PR & (1 << Reset_Button)) {
-        EXTI->PR |= (1 << Reset_Button); // Clear pending
-
-        // Reset system back to default
-        LCD_Clear();
+        //stop the motor and show "EMERGENCY STOP" message on LCD
+        Motor_Stop();            // Stop the motor
+        LCD_Clear();             // Optional
         LCD_SetCursor(0, 0);
-        LCD_Print("System Ready");
-        Motor_Init();  
+        LCD_Print("Emergency Stop");
+//        Delay_ms(100);
+//        LCD_Clear();
+        LCD_SetCursor(1, 0);
+        LCD_Print("0 m/s");
+
     }
 }
