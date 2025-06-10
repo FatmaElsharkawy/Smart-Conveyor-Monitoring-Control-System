@@ -1,4 +1,3 @@
-// #include "stm32f4xx.h"
 #include "LCD.h"
 #include "GPIO.h"
 #include <stdint.h>
@@ -31,6 +30,8 @@ void Delay_ms(uint32_t ms);
 // Main function
 int main(void) {
     SystemClock_Config();
+    //RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN;
+
     GPIO_Init_All();
     ADC_Init();
     Motor_Init();
@@ -43,18 +44,31 @@ int main(void) {
     EXTI_Enable(Reset_Button);
     NVIC->NVIC_ISER[1] |= (0x1 << 8); // 40 - 32 = 8 i.e. second register position 8 for both Emergency_button and Reset_button
 
-    conveyor_speed = Get_Belt_Speed();
+//    conveyor_speed = Get_Belt_Speed();
 
     LCD_Clear();
     LCD_SetCursor(0, 0);
     LCD_Print("B.SP. M.SP. Cnt");
 
-    LCD_SetCursor(1, 0);
-    LCD_PrintNumber((uint32_t) (conveyor_speed));
+//    LCD_SetCursor(1, 0);
+//    LCD_PrintNumber((uint32_t) (conveyor_speed));
 
     adc_filtered = ADC_Read();
 
     while (1) {
+        // --- Belt speed calculation --- //
+        // change display only if value changes
+        conveyor_speed = Get_Belt_Speed();
+        static float old_speed = -1.0f; // Initialize to an invalid value
+        if (conveyor_speed != old_speed) {
+            LCD_SetCursor(1, 0); // after "Belt Speed: "
+            LCD_Print("    ");    // clear old value
+            LCD_SetCursor(1, 0);
+            LCD_PrintNumber((uint32_t) (conveyor_speed));
+            old_speed = conveyor_speed;
+            LCD_SetCursor(1, 4);
+            LCD_Print("m/s");
+        }
         // --- Motor speed control --- //
         adc_value = ADC_Read();
         adc_filtered = ADC_Filter(adc_value);
@@ -65,9 +79,9 @@ int main(void) {
         // LCD update (only when speed changes)
         static uint8_t prev_speed = 255;
         if (Motor_GetSpeed() != prev_speed) {
-            LCD_SetCursor(1, 6); // after "Speed: "
+            LCD_SetCursor(1, 7); // after "Speed: "
             LCD_Print("   ");    // clear old value
-            LCD_SetCursor(1, 6);
+            LCD_SetCursor(1, 7);
             LCD_PrintNumber(Motor_GetSpeed());
             LCD_Print("%");
             prev_speed = Motor_GetSpeed();
@@ -110,8 +124,7 @@ void GPIO_Init_All(void)
     GPIO_Init(GPIO_B, 10, GPIO_AF, GPIO_PUSH_PULL);
 
     // Set alternate function AF1 (TIM2) for PB10
-    GPIOB->AFR[1] &= ~(0xF << ((10 - 8) * 4));
-    GPIOB->AFR[1] |=  (1 << ((10 - 8) * 4));
+    GPIO_Init(GPIO_B, 10, GPIO_AF, 1);  // 1 is the AF number
 
     //init for emergency button
     GPIO_Init(GPIO_B, Emergency_Button, GPIO_INPUT, GPIO_PULL_UP);
@@ -163,7 +176,7 @@ void SystemClock_Config(void) // this function configure the speed of the system
 }
 
 void EXTI15_10_IRQHandler(void) {
-    // Emergency Stop (e.g., PB12)
+    // Emergency Stop (PB12)
     if (EXTI->PR & (1 << Emergency_Button)) {
         EXTI->PR |= (1 << Emergency_Button); // Clear pending
 

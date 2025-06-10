@@ -1,24 +1,25 @@
 #ifndef LCD_H
 #define LCD_H
 
-#include "stm32f4xx.h"
+// #include "stm32f4xx.h"
 #include <stdint.h>
+#include "GPIO.h"
 
 // LCD Pin Connections
-#define LCD_D4_PORT     GPIOB
+#define LCD_D4_PORT     GPIO_B
 #define LCD_D4_PIN      4
-#define LCD_D5_PORT     GPIOB
+#define LCD_D5_PORT     GPIO_B
 #define LCD_D5_PIN      5
-#define LCD_D6_PORT     GPIOB
+#define LCD_D6_PORT     GPIO_B
 #define LCD_D6_PIN      6
-#define LCD_D7_PORT     GPIOB
+#define LCD_D7_PORT     GPIO_B
 #define LCD_D7_PIN      7
 
-#define LCD_RS_PORT     GPIOB
+#define LCD_RS_PORT     GPIO_B
 #define LCD_RS_PIN      0
-#define LCD_RW_PORT     GPIOB
+#define LCD_RW_PORT     GPIO_B
 #define LCD_RW_PIN      1
-#define LCD_E_PORT      GPIOB
+#define LCD_E_PORT      GPIO_B
 #define LCD_E_PIN       2
 
 // LCD Commands
@@ -50,7 +51,7 @@ void LCD_Data(uint8_t data);
 static void LCD_GPIO_Init(void);
 static void LCD_Write4Bits(uint8_t nibble);
 static void LCD_PulseEnable(void);
-static void LCD_SetPin(GPIO_TypeDef* port, uint8_t pin, uint8_t state);
+static void LCD_SetPin(uint8_t port, uint8_t pin, uint8_t state);
 static void Delay_us(uint32_t us);
 static void Delay_ms(uint32_t ms);
 

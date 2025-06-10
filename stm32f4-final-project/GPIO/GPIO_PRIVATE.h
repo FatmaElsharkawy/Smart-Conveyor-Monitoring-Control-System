@@ -1,4 +1,4 @@
-/** * Gpio_Private.h * * Created on: 4/15/2025 * Author : AbdallahDarwish */
+#include "Std_Types.h"
 
 #ifndef GPIO_PRIVATE_H
 #define GPIO_PRIVATE_H

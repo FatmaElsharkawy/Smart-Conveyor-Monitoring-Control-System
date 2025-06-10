@@ -36,4 +36,32 @@
 #define RCC_PLLI2SCFGR      REG32(RCC_BASE_ADDR + 0x84UL)
 
 
+// Added
+// RCC bit masks
+#define RCC_CR_HSION        (1U << 0)
+#define RCC_CR_HSIRDY       (1U << 1)
+#define RCC_CR_PLLON        (1U << 24)
+#define RCC_CR_PLLRDY       (1U << 25)
+
+#define RCC_PLLCFGR_PLLSRC_HSI   (0U << 22)
+#define RCC_PLLCFGR_PLLM_Pos     0
+#define RCC_PLLCFGR_PLLN_Pos     6
+#define RCC_PLLCFGR_PLLP_Pos     16
+#define RCC_PLLCFGR_PLLQ_Pos     24
+
+#define RCC_CFGR_SW_PLL      (0b10U)
+#define RCC_CFGR_SWS_PLL     (0b10U << 2)
+#define RCC_CFGR_HPRE_DIV1   (0U << 4)
+#define RCC_CFGR_PPRE1_DIV2  (0b100U << 10)
+#define RCC_CFGR_PPRE2_DIV1  (0b000U << 13)
+
+#define RCC_AHB1ENR_GPIOAEN  (1U << 0)
+#define RCC_AHB1ENR_GPIOBEN  (1U << 1)
+#define RCC_AHB1ENR_GPIOCEN  (1U << 2)
+
+#define FLASH_BASE           0x40023C00
+#define FLASH_ACR            REG32(FLASH_BASE + 0x00U)
+#define FLASH_ACR_LATENCY_2WS  (2U << 0)
+
+
 #endif /* RCC_PRIVATE_H */

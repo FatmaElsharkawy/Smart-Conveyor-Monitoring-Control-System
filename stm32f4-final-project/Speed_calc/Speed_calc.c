@@ -1,59 +1,86 @@
-//
-// Created by Yasmine on 04-Jun-25.
-//
-
 #include "Speed_calc.h"
-#include "stm32f4xx.h"
-#include "GPIO.h"
+#include "GPIO_PRIVATE.h"
+#include "Rcc_Private.h"
 #include "Std_Types.h"
-#include <stdio.h>
 
+// Register Access Macros
+#define TIM3_BASE_ADDR       0x40000400
+
+#define TIM3_CR1             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x00)) // Control Register 1
+#define TIM3_SR              (*(volatile uint32*)(TIM3_BASE_ADDR + 0x10)) // Status Register
+#define TIM3_CCMR1           (*(volatile uint32*)(TIM3_BASE_ADDR + 0x18)) // Capture/Compare Mode Register 1
+#define TIM3_CCER            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x20)) // Capture/Compare Enable Register
+#define TIM3_PSC             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x28)) // Prescaler Register
+#define TIM3_ARR             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x2C)) // Auto-Reload Register
+#define TIM3_CCR1            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x34)) // Capture/Compare Register 1
+#define TIM3_CNT             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x24)) // Counter Register
+
+// Bit Masks
+#define RCC_TIM3_EN          (1 << 1)   // TIM3 enable bit in RCC_APB1ENR
+#define TIM_SR_CC1IF         (1 << 1)   // Capture/Compare 1 interrupt flag
+#define TIM_CCER_CC1E        (1 << 0)   // Capture/Compare 1 output enable
+#define TIM_CCER_CC1P        (1 << 1)   // Capture/Compare 1 output polarity (0 = rising edge, 1 = falling edge)
+#define TIM_CCMR1_CC1S_0     (1 << 0)   // CC1S bits: 00 = Output, 01 = Input, 10 = Input mapped to TI2, 11 = Input mapped to TI1
+#define TIM_CCMR1_IC1F_0     (1 << 4)   // Input Capture 1 filter
+#define TIM_CCMR1_IC1F_1     (1 << 5)   // Input Capture 1 filter
+
+// Capture Logic
 static volatile uint32 time_capture_1 = 0;
 static volatile uint32 time_capture_2 = 0;
 
-void Capture_Edge(void){
+void Time_Capture_Init(void)
+{
+    // Enable GPIOA and TIM3 clocks
+    RCC_AHB1ENR |= (1 << 0);      // GPIOAEN
+    RCC_APB1ENR |= RCC_TIM3_EN;   // TIM3EN
 
-    while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for capture event
-    time_capture_1 = TIM3->CCR1; // Read the capture value
-    TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag
-    TIM3->CNT = 0; // Reset the timer counter
-    while(!(TIM3->SR & TIM_SR_CC1IF)); // Wait for the next capture event
-    time_capture_2 = TIM3->CCR1; // Read the next capture value
-    TIM3->SR &= ~TIM_SR_CC1IF; // Clear the capture flag again
+    // Configure PA6 as alternate function (AF2) for TIM3_CH1
+    GpioType* gpioa = (GpioType*) GPIOA_BASE_ADDR;
+    gpioa->GPIO_MODER &= ~(0x3 << (6 * 2));
+    gpioa->GPIO_MODER |=  (0x2 << (6 * 2));          // Alternate function mode
+    gpioa->GPIO_AFRL  &= ~(0xF << (6 * 4));
+    gpioa->GPIO_AFRL  |=  (0x2 << (6 * 4));          // AF2 for TIM3_CH1
+
+    // Timer configuration
+    TIM3_PSC = 83;           // 84 MHz / (83+1) = 1 MHz → 1 tick = 1 µs
+    TIM3_ARR = 0xFFFF;       // Max auto-reload
+    TIM3_CCMR1 &= ~0x3;      // Clear CC1S bits
+    TIM3_CCMR1 |= TIM_CCMR1_CC1S_0; // CC1 mapped to TI1
+    TIM3_CCMR1 |= TIM_CCMR1_IC1F_0 | TIM_CCMR1_IC1F_1; // Filter = 1111b: max digital filter
+    TIM3_CCER &= ~TIM_CCER_CC1P;   // Rising edge
+    TIM3_CCER |= TIM_CCER_CC1E;    // Enable capture
+    TIM3_CR1 |= 1;                 // Enable timer
 }
 
-void Time_Capture_Init(void) {
+static void Capture_Edge(void)
+{
+    uint32 timeout = 1000000;
 
-    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+    // Wait for first edge
+    TIM3_SR &= ~TIM_SR_CC1IF;
+    TIM3_CNT = 0;
+    while (!(TIM3_SR & TIM_SR_CC1IF) && timeout--);
+    if (timeout == 0) return;
+    time_capture_1 = TIM3_CCR1;
+    TIM3_SR &= ~TIM_SR_CC1IF;
 
-    // pin a6 as alternate function TIM3_CH1
-    GPIO_Init(GPIO_A, 6, GPIO_AF, GPIO_PUSH_PULL);
-    GPIOA->AFR[0] &= ~(0xF << (6 * 4)); // Clear alternate function bits for PA6
-    GPIOA->AFR[0] |= (2 << (6 * 4)); // Set AF2 (TIM3) for PA6
-
-    // Configure TIM3 for input capture
-    TIM3->PSC = 83; // Prescaler to get 1 MHz clock
-    TIM3->ARR = 0xFFFF; // Max value for 16-bit timer
-    TIM3->CCMR1 &= ~TIM_CCMR1_CC1S; // Clear CC1S bits
-    TIM3->CCMR1 |= TIM_CCMR1_CC1S_0; // Set CC1S to 01 (input capture on TI1)
-    TIM3->CCMR1 |= TIM_CCMR1_IC1F_0 | TIM_CCMR1_IC1F_1; // Set input filter (fdiv = 16)
-    TIM3->CCER |= TIM_CCER_CC1E; // Enable capture on channel 1
-
-    TIM3->CR1 |= TIM_CR1_CEN; // Enable the timer
-
+    // Wait for second edge
+    timeout = 1000000;
+    while (!(TIM3_SR & TIM_SR_CC1IF) && timeout--);
+    if (timeout == 0) return;
+    time_capture_2 = TIM3_CCR1;
+    TIM3_SR &= ~TIM_SR_CC1IF;
 }
 
-
-float Get_Belt_Speed(void) {
-    uint32 dt = 0;
+float Get_Belt_Speed(void)
+{
     Capture_Edge();
 
-    dt = time_capture_2; // dt in timer ticks
+    uint32 dt = (time_capture_2 >= time_capture_1)
+                ? (time_capture_2 - time_capture_1)
+                : ((0xFFFF - time_capture_1) + time_capture_2);
 
-//    dt = (time_capture_2 >= time_capture_1) ? (time_capture_2 - time_capture_1) : ((0xFFFF - time_capture_1) + time_capture_2 );
-    if (dt == 0) return 0.0f;   // prevent div/0
+    if (dt == 0) return 0.0f;
 
-    return 1000000.0f / dt;     // freq = 1 / period (in seconds)
+    return 1000000.0f / dt; // Return frequency in Hz
 }
-
-

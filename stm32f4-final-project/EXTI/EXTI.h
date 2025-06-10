@@ -5,6 +5,7 @@
 #ifndef EXTI_H
 #define EXTI_H
 #include "Std_Types.h"
+#include "EXTI_PRIVATE.h"
 
 // Define the EXTI registers
 typedef struct{

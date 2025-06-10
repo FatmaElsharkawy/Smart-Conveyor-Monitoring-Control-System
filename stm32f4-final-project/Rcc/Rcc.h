@@ -1,5 +1,5 @@
 /**
- * Rcc.h
+* Rcc.h
  *
  *  Created on: Sun Mar 26 2023
  *  Author    : Abdullah Darwish
@@ -8,6 +8,7 @@
 #ifndef RCC_H
 #define RCC_H
 #include "Std_Types.h"
+#include "Rcc_Private.h"
 
 #define RCC_AHB1 0UL
 #define RCC_AHB2 1UL

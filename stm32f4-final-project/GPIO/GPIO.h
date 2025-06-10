@@ -1,6 +1,7 @@
 #ifndef GPIO_H
 #define GPIO_H
 #include "Std_Types.h"
+#include "GPIO_PRIVATE.h"
 /*PortName*/
 #define GPIO_A 'A'
 #define GPIO_B 'B'

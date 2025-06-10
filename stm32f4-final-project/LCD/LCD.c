@@ -1,4 +1,6 @@
 #include "LCD.h"
+#include "GPIO.h"
+#include "Rcc.h"
 
 void LCD_Init(void) {
     LCD_GPIO_Init(); // Initialize GPIO pins
@@ -92,25 +94,28 @@ void LCD_Data(uint8_t data) {
 
 static void LCD_GPIO_Init(void) {
     // Enable GPIOB clock
-    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+    RCC_AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
 
-    // Configure data pins D4-D7 (PB4-PB7) as output
-    GPIOB->MODER &= ~((3 << (LCD_D4_PIN*2)) | (3 << (LCD_D5_PIN*2)) |
-                      (3 << (LCD_D6_PIN*2)) | (3 << (LCD_D7_PIN*2))); // clear
-    GPIOB->MODER |= (1 << (LCD_D4_PIN*2)) | (1 << (LCD_D5_PIN*2)) |
-                    (1 << (LCD_D6_PIN*2)) | (1 << (LCD_D7_PIN*2)); // set
+    // Configure data pins D4–D7 (PB4–PB7) as output, push-pull, no pull-up/down
+    GPIO_Init(GPIO_B, LCD_D4_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
+    GPIO_Init(GPIO_B, LCD_D5_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
+    GPIO_Init(GPIO_B, LCD_D6_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
+    GPIO_Init(GPIO_B, LCD_D7_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
 
-    // Configure control pins RS, RW, E (PB0, PB1, PB2) as output
-    GPIOB->MODER &= ~((3 << (LCD_RS_PIN*2)) | (3 << (LCD_RW_PIN*2)) | (3 << (LCD_E_PIN*2)));
-    GPIOB->MODER |= (1 << (LCD_RS_PIN*2)) | (1 << (LCD_RW_PIN*2)) | (1 << (LCD_E_PIN*2));
+    // Configure control pins RS, RW, E (PB0, PB1, PB2) similarly
+    GPIO_Init(GPIO_B, LCD_RS_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
+    GPIO_Init(GPIO_B, LCD_RW_PIN, GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
+    GPIO_Init(GPIO_B, LCD_E_PIN,  GPIO_OUTPUT, GPIO_PUSH_PULL | (GPIO_NO_PULL_DOWN << 1));
 
-    // Set all pins to push-pull output
-    GPIOB->OTYPER &= ~((1 << LCD_D4_PIN) | (1 << LCD_D5_PIN) | (1 << LCD_D6_PIN) | (1 << LCD_D7_PIN) |
-                       (1 << LCD_RS_PIN) | (1 << LCD_RW_PIN) | (1 << LCD_E_PIN));
+    // Initialize all used pins to LOW
+    GPIO_WritePin(GPIO_B, LCD_D4_PIN, LOW);
+    GPIO_WritePin(GPIO_B, LCD_D5_PIN, LOW);
+    GPIO_WritePin(GPIO_B, LCD_D6_PIN, LOW);
+    GPIO_WritePin(GPIO_B, LCD_D7_PIN, LOW);
 
-    // Initialize all pins to low
-    GPIOB->ODR &= ~((1 << LCD_D4_PIN) | (1 << LCD_D5_PIN) | (1 << LCD_D6_PIN) | (1 << LCD_D7_PIN) |
-                    (1 << LCD_RS_PIN) | (1 << LCD_RW_PIN) | (1 << LCD_E_PIN));
+    GPIO_WritePin(GPIO_B, LCD_RS_PIN, LOW);
+    GPIO_WritePin(GPIO_B, LCD_RW_PIN, LOW);
+    GPIO_WritePin(GPIO_B, LCD_E_PIN,  LOW);
 }
 
 static void LCD_Write4Bits(uint8_t half_byte) {
@@ -133,13 +138,9 @@ static void LCD_PulseEnable(void) {
     Delay_us(50);
 }
 
-static void LCD_SetPin(GPIO_TypeDef* port, uint8_t pin, uint8_t state) {
+static void LCD_SetPin(uint8_t port, uint8_t pin, uint8_t state) {
     // Sets a GPIO pin on a given port to high or low
-    if (state) {
-        port->ODR |= (1 << pin);
-    } else {
-        port->ODR &= ~(1 << pin);
-    }
+    GPIO_WritePin(port, pin, state);
 }
 
 static void Delay_us(uint32_t us) {
