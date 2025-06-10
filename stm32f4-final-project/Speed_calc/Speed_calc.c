@@ -6,23 +6,23 @@
 // Register Access Macros
 #define TIM3_BASE_ADDR       0x40000400
 
-#define TIM3_CR1             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x00))
-#define TIM3_SR              (*(volatile uint32*)(TIM3_BASE_ADDR + 0x10))
-#define TIM3_CCMR1           (*(volatile uint32*)(TIM3_BASE_ADDR + 0x18))
-#define TIM3_CCER            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x20))
-#define TIM3_PSC             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x28))
-#define TIM3_ARR             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x2C))
-#define TIM3_CCR1            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x34))
-#define TIM3_CNT             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x24))
+#define TIM3_CR1             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x00)) // Control Register 1
+#define TIM3_SR              (*(volatile uint32*)(TIM3_BASE_ADDR + 0x10)) // Status Register
+#define TIM3_CCMR1           (*(volatile uint32*)(TIM3_BASE_ADDR + 0x18)) // Capture/Compare Mode Register 1
+#define TIM3_CCER            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x20)) // Capture/Compare Enable Register
+#define TIM3_PSC             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x28)) // Prescaler Register
+#define TIM3_ARR             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x2C)) // Auto-Reload Register
+#define TIM3_CCR1            (*(volatile uint32*)(TIM3_BASE_ADDR + 0x34)) // Capture/Compare Register 1
+#define TIM3_CNT             (*(volatile uint32*)(TIM3_BASE_ADDR + 0x24)) // Counter Register
 
 // Bit Masks
 #define RCC_TIM3_EN          (1 << 1)   // TIM3 enable bit in RCC_APB1ENR
-#define TIM_SR_CC1IF         (1 << 1)
-#define TIM_CCER_CC1E        (1 << 0)
-#define TIM_CCER_CC1P        (1 << 1)
-#define TIM_CCMR1_CC1S_0     (1 << 0)
-#define TIM_CCMR1_IC1F_0     (1 << 4)
-#define TIM_CCMR1_IC1F_1     (1 << 5)
+#define TIM_SR_CC1IF         (1 << 1)   // Capture/Compare 1 interrupt flag
+#define TIM_CCER_CC1E        (1 << 0)   // Capture/Compare 1 output enable
+#define TIM_CCER_CC1P        (1 << 1)   // Capture/Compare 1 output polarity (0 = rising edge, 1 = falling edge)
+#define TIM_CCMR1_CC1S_0     (1 << 0)   // CC1S bits: 00 = Output, 01 = Input, 10 = Input mapped to TI2, 11 = Input mapped to TI1
+#define TIM_CCMR1_IC1F_0     (1 << 4)   // Input Capture 1 filter
+#define TIM_CCMR1_IC1F_1     (1 << 5)   // Input Capture 1 filter
 
 // Capture Logic
 static volatile uint32 time_capture_1 = 0;
